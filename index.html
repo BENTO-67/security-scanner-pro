@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h1>فاحص أمان المواقع</h1>
+    <input type="text" id="urlInput" placeholder="أدخل الرابط هنا">
+    <button onclick="scan()">فحص الآن</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function scan() {
+            const url = document.getElementById('urlInput').value;
+            const res = await fetch(`/scan?url=${url}`);
+            const data = await res.json();
+            document.getElementById('result').innerText = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>
