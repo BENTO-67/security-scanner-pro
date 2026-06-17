@@ -1,50 +1,31 @@
-import requests # type: ignore
-import ssl
-import socket
-from urllib.parse import urlparse
+import requests # pyright: ignore[reportMissingModuleSource]
 
 def check_security(url):
-    results = {}
+    if not url.startswith("http"):
+        url = "https://" + url
     
-    # التأكد من أن الرابط يبدأ بـ http/https
-    if not url.startswith('http'):
-        url = 'https://' + url
-
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    
     try:
-        # 1. فحص الـ SSL
-        parsed_url = urlparse(url)
-        hostname = parsed_url.netloc
-        context = ssl.create_default_context()
-        with socket.create_connection((hostname, 443), timeout=5) as sock:
-            with context.wrap_socket(sock, server_hostname=hostname) as ssock:
-                results['ssl_enabled'] = True
+        response = requests.get(url, headers=headers, timeout=10)
+        h = response.headers
         
-        # 2. فحص الـ Security Headers
-        response = requests.get(url, timeout=5)
-        headers = response.headers
+        results = {
+            "ssl_enabled": url.startswith("https"),
+            "x_frame_options": "X-Frame-Options" in h,
+            "content_security_policy": "Content-Security-Policy" in h,
+            "recommendations": []
+        }
         
-        results['x_frame_options'] = 'X-Frame-Options' in headers
-        results['content_security_policy'] = 'Content-Security-Policy' in headers
-        results['server_info'] = headers.get('Server', 'Not Exposed')
-        
+        if not results["x_frame_options"]:
+            results["recommendations"].append("ثغرة XFO: يُنصح بضبط الهيدر لمنع الـ Clickjacking.")
+        if not results["content_security_policy"]:
+            results["recommendations"].append("ثغرة CSP: يفضل تفعيل سياسة أمان المحتوى.")
+        if not results["recommendations"]:
+            results["recommendations"].append("الموقع يبدو جيداً من حيث الهيدرات الأساسية.")
+            
+        return results
     except Exception as e:
-        return {"error": str(e)}
-
-    return results
-
-# تجربة السكربت
-target = "google.com"
-print(check_security(target))
-import requests # type: ignore
-import ssl
-import socket
-from urllib.parse import urlparse
-
-# ... (الكود اللي كتبته أنت موجود هنا، اتركه كما هو) ...
-
-# ضيف هذا الجزء تحت في نهاية الملف:
-if __name__ == "__main__":
-    target_url = "google.com" # هنا تقدر تغير الموقع اللي تريد تفحصه
-    results = check_security(target_url)
-    print("--- نتيجة الفحص ---")
-    print(results)
+        return {"error": "تعذر الاتصال، الموقع محمي أو الرابط خاطئ."}

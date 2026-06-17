@@ -1,18 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><title>Scanner Pro</title></head>
 <body>
-    <h1>فاحص أمان المواقع</h1>
-    <input type="text" id="urlInput" placeholder="أدخل الرابط هنا">
-    <button onclick="scan()">فحص الآن</button>
-    <pre id="result"></pre>
+    <input type="text" id="urlInput" placeholder="example.com">
+    <button id="checkBtn">فحص الآن</button>
+    <div id="results"></div>
 
     <script>
-        async function scan() {
+        document.getElementById('checkBtn').addEventListener('click', async () => {
             const url = document.getElementById('urlInput').value;
-            const res = await fetch(`/scan?url=${url}`);
-            const data = await res.json();
-            document.getElementById('result').innerText = JSON.stringify(data, null, 2);
-        }
+            const res = document.getElementById('results');
+            res.innerHTML = "جاري الفحص...";
+            try {
+                const response = await fetch(`/scan?url=${url}`);
+                const data = await response.json();
+                if(data.error) res.innerHTML = data.error;
+                else res.innerHTML = `SSL: ${data.ssl_enabled ? '✅' : '❌'}<br>XFO: ${data.x_frame_options ? '✅' : '❌'}<br>CSP: ${data.content_security_policy ? '✅' : '❌'}<br>التوصيات: ${data.recommendations.join(', ')}`;
+            } catch { res.innerHTML = "خطأ في الاتصال بالسيرفر."; }
+        });
     </script>
 </body>
 </html>

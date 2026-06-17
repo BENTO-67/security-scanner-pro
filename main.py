@@ -1,23 +1,21 @@
-from fastapi import FastAPI # type: ignore
-from sckrebt import check_security  # استيراد الوظيفة من ملفك اللي سويناه
+import fastapi # pyright: ignore[reportMissingImports]
+import fastapi.middleware.cors # type: ignore
+import fastapi.responses # pyright: ignore[reportMissingImports]
+import sckrebt
 
-app = FastAPI()
+app = fastapi.FastAPI()
 
-@app.get("/scan")
-def scan_site(url: str):
-    return check_security(url)
-from fastapi import FastAPI # type: ignore
-from fastapi.responses import FileResponse # type: ignore
-from sckrebt import check_security
+app.add_middleware(
+    fastapi.middleware.cors.CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-app = FastAPI()
-
-# لفتح الصفحة الرئيسية
 @app.get("/")
 def read_root():
-    return FileResponse("index.html")
+    return fastapi.responses.FileResponse("index.html")
 
-# لعملية الفحص
 @app.get("/scan")
 def scan_site(url: str):
-    return check_security(url)
+    return sckrebt.check_security(url)
