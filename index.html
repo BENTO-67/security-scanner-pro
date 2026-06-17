@@ -1,23 +1,336 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head><meta charset="UTF-8"><title>Scanner Pro</title></head>
-<body>
-    <input type="text" id="urlInput" placeholder="example.com">
-    <button id="checkBtn">فحص الآن</button>
-    <div id="results"></div>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberScan Pro</title>
 
-    <script>
-        document.getElementById('checkBtn').addEventListener('click', async () => {
-            const url = document.getElementById('urlInput').value;
-            const res = document.getElementById('results');
-            res.innerHTML = "جاري الفحص...";
-            try {
-                const response = await fetch(`/scan?url=${url}`);
-                const data = await response.json();
-                if(data.error) res.innerHTML = data.error;
-                else res.innerHTML = `SSL: ${data.ssl_enabled ? '✅' : '❌'}<br>XFO: ${data.x_frame_options ? '✅' : '❌'}<br>CSP: ${data.content_security_policy ? '✅' : '❌'}<br>التوصيات: ${data.recommendations.join(', ')}`;
-            } catch { res.innerHTML = "خطأ في الاتصال بالسيرفر."; }
-        });
-    </script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:'Cairo',sans-serif;
+}
+
+body{
+background:#050816;
+min-height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+padding:20px;
+overflow-x:hidden;
+color:#fff;
+}
+
+body::before{
+content:"";
+position:fixed;
+inset:0;
+background:
+radial-gradient(circle at 20% 20%, rgba(0,229,255,.15), transparent 30%),
+radial-gradient(circle at 80% 70%, rgba(0,255,136,.12), transparent 30%);
+z-index:-1;
+}
+
+.container{
+width:100%;
+max-width:900px;
+background:rgba(255,255,255,.05);
+backdrop-filter:blur(20px);
+border:1px solid rgba(0,229,255,.25);
+border-radius:24px;
+padding:35px;
+box-shadow:0 0 40px rgba(0,229,255,.15);
+}
+
+.logo{
+text-align:center;
+margin-bottom:30px;
+}
+
+.logo h1{
+font-size:42px;
+color:#00e5ff;
+text-shadow:0 0 20px #00e5ff;
+}
+
+.logo p{
+color:#aaa;
+margin-top:8px;
+}
+
+.search-box{
+display:flex;
+gap:12px;
+margin-bottom:30px;
+}
+
+.search-box input{
+flex:1;
+height:58px;
+background:rgba(255,255,255,.06);
+border:1px solid rgba(255,255,255,.1);
+border-radius:14px;
+padding:0 20px;
+font-size:18px;
+color:#fff;
+outline:none;
+}
+
+.search-box input:focus{
+border-color:#00e5ff;
+box-shadow:0 0 20px rgba(0,229,255,.3);
+}
+
+.search-box button{
+width:170px;
+border:none;
+border-radius:14px;
+cursor:pointer;
+font-size:18px;
+font-weight:700;
+background:linear-gradient(135deg,#00e5ff,#00ff88);
+color:#05121a;
+transition:.3s;
+}
+
+.search-box button:hover{
+transform:translateY(-2px);
+box-shadow:0 0 30px rgba(0,229,255,.4);
+}
+
+.score-box{
+display:none;
+text-align:center;
+margin-bottom:25px;
+}
+
+.score{
+font-size:65px;
+font-weight:bold;
+color:#00ff88;
+text-shadow:0 0 20px #00ff88;
+}
+
+.cards{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+gap:15px;
+margin-top:20px;
+}
+
+.card{
+background:rgba(255,255,255,.05);
+border:1px solid rgba(255,255,255,.08);
+border-radius:15px;
+padding:18px;
+}
+
+.card h3{
+margin-bottom:10px;
+font-size:18px;
+}
+
+.good{
+color:#00ff88;
+}
+
+.bad{
+color:#ff4d6d;
+}
+
+#recommendations{
+margin-top:25px;
+padding:20px;
+border-radius:15px;
+background:rgba(255,255,255,.04);
+}
+
+.loader{
+display:none;
+text-align:center;
+margin:20px;
+font-size:18px;
+color:#00e5ff;
+}
+
+@media(max-width:768px){
+
+.search-box{
+flex-direction:column;
+}
+
+.search-box button{
+width:100%;
+height:58px;
+}
+
+.logo h1{
+font-size:30px;
+}
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="logo">
+<h1>CYBERSCAN PRO</h1>
+<p>Advanced Website Security Scanner</p>
+</div>
+
+<div class="search-box">
+<input type="text" id="urlInput" placeholder="example.com">
+<button id="checkBtn">SCAN NOW</button>
+</div>
+
+<div class="loader" id="loader">
+جاري فحص الموقع ...
+</div>
+
+<div class="score-box" id="scoreBox">
+<div class="score" id="score">0</div>
+<div>Security Score</div>
+</div>
+
+<div class="cards" id="results"></div>
+
+<div id="recommendations"></div>
+
+</div>
+<script>
+
+document.getElementById('checkBtn').addEventListener('click', async () => {
+
+    const url = document.getElementById('urlInput').value.trim();
+
+    if(!url){
+        alert("ادخل رابط الموقع");
+        return;
+    }
+
+    const loader = document.getElementById('loader');
+    const results = document.getElementById('results');
+    const scoreBox = document.getElementById('scoreBox');
+    const scoreText = document.getElementById('score');
+    const recommendations = document.getElementById('recommendations');
+
+    loader.style.display = "block";
+    results.innerHTML = "";
+    recommendations.innerHTML = "";
+    scoreBox.style.display = "none";
+
+    try{
+
+        const response = await fetch(
+            '/scan?url=' + encodeURIComponent(url)
+        );
+
+        const data = await response.json();
+
+        loader.style.display = "none";
+
+        if(data.error){
+            results.innerHTML =
+            `<div class="card">
+                <h3 class="bad">${data.error}</h3>
+            </div>`;
+            return;
+        }
+
+        let score = 100;
+
+        if(!data.ssl_enabled) score -= 20;
+        if(!data.x_frame_options) score -= 20;
+        if(!data.content_security_policy) score -= 20;
+        if(!data.xss_protection) score -= 20;
+
+        if(score < 0) score = 0;
+
+        scoreBox.style.display = "block";
+        scoreText.textContent = score;
+
+        results.innerHTML = `
+
+        <div class="card">
+            <h3>SSL</h3>
+            <p class="${data.ssl_enabled ? 'good':'bad'}">
+                ${data.ssl_enabled ? '✓ Enabled' : '✗ Missing'}
+            </p>
+        </div>
+
+        <div class="card">
+            <h3>X-Frame-Options</h3>
+            <p class="${data.x_frame_options ? 'good':'bad'}">
+                ${data.x_frame_options ? '✓ Enabled' : '✗ Missing'}
+            </p>
+        </div>
+
+        <div class="card">
+            <h3>Content Security Policy</h3>
+            <p class="${data.content_security_policy ? 'good':'bad'}">
+                ${data.content_security_policy ? '✓ Enabled' : '✗ Missing'}
+            </p>
+        </div>
+
+        <div class="card">
+            <h3>XSS Protection</h3>
+            <p class="${data.xss_protection ? 'good':'bad'}">
+                ${data.xss_protection ? '✓ Enabled' : '✗ Missing'}
+            </p>
+        </div>
+
+        `;
+
+        let recHtml = `
+            <h2 style="margin-bottom:15px;color:#00e5ff">
+                Security Recommendations
+            </h2>
+        `;
+
+        if(data.recommendations &&
+           data.recommendations.length > 0){
+
+            data.recommendations.forEach(item=>{
+                recHtml += `
+                    <p style="margin:10px 0">
+                        ⚠ ${item}
+                    </p>
+                `;
+            });
+
+        }else{
+
+            recHtml += `
+                <p class="good">
+                    ✓ لا توجد مشاكل أمنية واضحة
+                </p>
+            `;
+        }
+
+        recommendations.innerHTML = recHtml;
+
+    }catch(error){
+
+        loader.style.display = "none";
+
+        results.innerHTML = `
+        <div class="card">
+            <h3 class="bad">
+                خطأ بالاتصال مع السيرفر
+            </h3>
+        </div>`;
+    }
+
+});
+
+</script>
+
 </body>
 </html>
